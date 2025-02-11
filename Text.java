@@ -1,4 +1,6 @@
 import javax.swing.*;
+import javax.swing.event.UndoableEditEvent;
+import javax.swing.event.UndoableEditListener;
 import javax.swing.undo.CannotUndoException;
 import javax.swing.undo.UndoManager;
 import java.awt.*;
@@ -19,13 +21,13 @@ public class Text extends JFrame {
         setTitle("Editor de Texto");
         setSize(900, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        JLabel ArchiveName = new JLabel();
 
         textArea = new JTextArea();
         textArea.setLineWrap(true); // Habilita a quebra de linhas
         textArea.setWrapStyleWord(true); // Quebra as linhas por palavras (não por caracteres)
 
-        // Adiciona o UndoManager ao JTextArea
-        textArea.getDocument().addUndoableEditListener(e -> undoManager.addEdit(e.getEdit()));
+
 
         JScrollPane scrollPane = new JScrollPane(textArea,
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS, // Barra vertical sempre visível
@@ -55,25 +57,40 @@ public class Text extends JFrame {
         openItem.addActionListener(e -> openFile());
         saveItem.addActionListener(e -> saveFile());
 
+        // Adiciona o UndoManager ao JTextArea
+        textArea.getDocument().addUndoableEditListener(e -> undoManager.addEdit(e.getEdit()));
 
         // teclas de atalho para o undo e redo
        textArea.addKeyListener(new java.awt.event.KeyAdapter(){
            @Override
            public void keyPressed(KeyEvent e) {
+
                if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_Z) {
+
                    if (undoManager.canUndo()) {
                        undoManager.undo();
                        updateUndoRedoButtons();
-
+                       return;
                    }
+                  // undoManager.undo();
                } else if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_Y) {
                    if (undoManager.canRedo()){
                        undoManager.redo();
                        updateUndoRedoButtons();
+                       return;
                    }
                }
+                // Ativa meu botão de undo ao escerever algo no meu arquivo aberto
+               char letter = e.getKeyChar();
+
+               if(Character.isLetterOrDigit(letter)){
+                   undoOption.setEnabled(true);
+               }
+
            }
        });
+
+
 
        // Eventos dos botes undo e redo
        undoOption.addActionListener(e -> {
@@ -124,6 +141,7 @@ public class Text extends JFrame {
 
             }
         });
+
        
         setResizable(false); // setando para não redimensionar a janela
         setVisible(true);
@@ -153,13 +171,16 @@ public class Text extends JFrame {
                 throw new RuntimeException(e);
             }
 
+        }else{
+            JOptionPane.showMessageDialog(this, "Não é possível salvar um arquivo vazio");
+            return;
         }
     }
 
 
     private void openFile(){
         fileChooser = new JFileChooser(); // intanciando a janela de navegação de arquivos
-        int option = fileChooser.showOpenDialog(this);
+        int option = fileChooser.showOpenDialog(this); // mostrando o gerenciador de arquivo
 
         if(option == JFileChooser.APPROVE_OPTION){
             File file = fileChooser.getSelectedFile(); // pega o arquivo selecionado
@@ -170,8 +191,9 @@ public class Text extends JFrame {
                     undoManager.discardAllEdits();// limpa o historico de arquivo anteriores
                     textArea.setText("");
                     textArea.read(reader, null); // escreve o texto na tela
-
-                    updateUndoRedoButtons();
+                    textArea.getDocument().addUndoableEditListener(e -> undoManager.addEdit(e.getEdit()));
+                    undoOption.setEnabled(false);
+                    redoOption.setEnabled(false);
 
                 } catch (IOException e){
 
